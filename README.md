@@ -81,10 +81,11 @@ vertical position.
 
 ## Assumptions and limits
 
-* **Location is approximate.** No survey coordinates were available; the
-  building centre is set to 54.6040° N, 5.9205° W (Clarendon Dock area), which
-  may be tens of metres out. To correct it, change `ANCHOR` (and `BEARING` if
-  needed) in `tools/build.py` and run `python3 tools/build.py`, or move the features in ArcGIS Pro.
+* **Location was fitted by eye.** No survey coordinates were available. The
+  building centre is at 54.60438° N, 5.91984° W: a first estimate moved 60 m
+  north-east after checking against satellite imagery. Orientation comes from
+  the plan's north arrow (sheet-up = 35.5°). To adjust, change `ANCHOR` (and
+  `BEARING` if needed) in `tools/build.py` and run `python3 tools/build.py`.
 * **Levels not on the drawings are inferred.** Sheets exist for Ground, 01, 04,
   06, 08, 09, 13, 14 and 15. Levels 02, 03, 05, 07 and 10 copy the nearest
   typical floor; levels 11 and 12 are LV09 less the "LV 11 terrace" strip shown
