@@ -10,7 +10,9 @@ RPP Architects general arrangement plans `CQ3_FP.pdf` (drawing series
 `2403-RPP-01-ZZ-DR-A-2xx`, scale 1:100).
 
 * `index.html` — 3D viewer (ArcGIS Maps SDK for JavaScript 5.1):
-  * `arcgis-floor-filter` to pick a level (the current 5.1 component for floor-aware Indoors data);
+  * built on the `<arcgis-scene>` component, with `arcgis-floor-filter` slotted top-right
+    (`long-names`), as in the SDK's floor filter example: Browse, the level list, Zoom to and
+    Collapse; zoom, navigation toggle and compass bottom-left;
   * a **Show features** filter to switch groups on and off (offices, lobbies, stairs, lifts,
     toilets, plant, parking, amenities, terraces, walls, the glass floors above);
   * **Measure**: 3D direct-line distance (`arcgis-direct-line-measurement-3d`) and area

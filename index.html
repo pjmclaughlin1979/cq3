@@ -12,9 +12,9 @@
     :root { --ink: #1c2230; --muted: #667085; --panel: rgba(255,255,255,.9); --line: rgba(28,34,48,.1); --accent: #0f6e8c; }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #eef1f4; font-family: Inter, system-ui, sans-serif; color: var(--ink); }
-    #view { position: absolute; inset: 0; }
+    #view { position: absolute; inset: 0; display: block; }
     .panel { background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 28px rgba(20,24,32,.12); }
-    #info { position: absolute; top: 16px; left: 16px; width: 320px; max-width: calc(100vw - 32px); padding: 16px 18px; }
+    #info { position: absolute; top: 16px; left: 16px; width: 320px; max-width: calc(100vw - 32px); max-height: calc(100vh - 180px); overflow: auto; padding: 16px 18px; }
     #info .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
     #info h1 { font-size: 19px; margin: 4px 0 8px; }
     #info p { font-size: 13px; line-height: 1.5; color: #475467; margin: 0 0 8px; }
@@ -39,8 +39,6 @@
     #filterList .sep { border-top: 1px dashed var(--line); margin: 4px 0 2px; }
     #toggle { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; }
     #info.collapsed #body { display: none; }
-    #floors { position: absolute; top: 16px; right: 16px; width: auto; max-height: calc(100vh - 32px); overflow: auto; }
-    #floors arcgis-floor-filter { display: block; }
     #tools { position: absolute; bottom: 24px; right: 16px; display: flex; gap: 8px; }
     #measure { position: absolute; bottom: 74px; right: 16px; width: 330px; max-width: calc(100vw - 32px); padding: 10px; overflow: hidden; }
     #measure[hidden] { display: none; }
@@ -55,14 +53,19 @@
     #loader.gone { opacity: 0; pointer-events: none; }
     @media (max-width: 720px) {
       #info { width: auto; right: 16px; top: auto; bottom: 16px; max-height: 45vh; overflow: auto; }
-      #floors { width: 170px; max-height: 45vh; }
       #tools { bottom: auto; top: 16px; left: 16px; right: auto; }
       #measure { bottom: auto; top: 64px; left: 16px; right: auto; width: 250px; }
     }
   </style>
 </head>
 <body>
-  <div id="view" aria-label="3D indoor model of City Quays 3"></div>
+  <!-- Scene component with the floor filter slotted top-right, as in the SDK's arcgis-floor-filter example -->
+  <arcgis-scene id="view" aria-label="3D indoor model of City Quays 3">
+    <arcgis-floor-filter id="floorFilter" slot="top-right" long-names></arcgis-floor-filter>
+    <arcgis-zoom slot="bottom-left"></arcgis-zoom>
+    <arcgis-navigation-toggle slot="bottom-left"></arcgis-navigation-toggle>
+    <arcgis-compass slot="bottom-left"></arcgis-compass>
+  </arcgis-scene>
 
   <section id="info" class="panel" aria-live="polite">
     <button id="toggle" aria-expanded="true" aria-label="Collapse panel" title="Collapse panel">▾</button>
@@ -79,9 +82,6 @@
     </div>
   </section>
 
-  <section id="floors" class="panel">
-    <arcgis-floor-filter id="floorFilter"></arcgis-floor-filter>
-  </section>
 
   <section id="measure" class="panel" hidden aria-label="Measure">
     <div class="row">
@@ -101,8 +101,8 @@
   <div id="loader">Loading model</div>
 
   <script type="module">
-    const [WebScene, SceneView, FeatureLayer, Graphic, Polygon, Polyline, MapFloorInfo, Camera, Point, FeatureFilter] = await $arcgis.import([
-      "@arcgis/core/WebScene.js", "@arcgis/core/views/SceneView.js", "@arcgis/core/layers/FeatureLayer.js", "@arcgis/core/Graphic.js",
+    const [WebScene, FeatureLayer, Graphic, Polygon, Polyline, MapFloorInfo, Camera, Point, FeatureFilter] = await $arcgis.import([
+      "@arcgis/core/WebScene.js", "@arcgis/core/layers/FeatureLayer.js", "@arcgis/core/Graphic.js",
       "@arcgis/core/geometry/Polygon.js", "@arcgis/core/geometry/Polyline.js", "@arcgis/core/support/MapFloorInfo.js",
       "@arcgis/core/Camera.js", "@arcgis/core/geometry/Point.js", "@arcgis/core/layers/support/FeatureFilter.js"
     ]);
@@ -212,12 +212,19 @@
     const levelsByOrder = levels.features.map(f => f.properties).sort((a, b) => a.VERTICAL_ORDER - b.VERTICAL_ORDER);
     const levelById = Object.fromEntries(levelsByOrder.map(l => [l.LEVEL_ID, l]));
 
-    const view = new SceneView({
-      container: "view", map, camera: camAt(200, 62, 150, BASE + 16), qualityProfile: "high", ui: { components: [] },
-      environment: { atmosphereEnabled: true, lighting: { type: "sun", date: new Date(Date.UTC(2025, 5, 21, 11, 30)), directShadowsEnabled: false } },
-      popupEnabled: false,
-      popup: { dockEnabled: true, dockOptions: { position: "bottom-center", breakpoint: false } }
-    });
+    // the <arcgis-scene> component owns the SceneView; slotted components (floor filter,
+    // zoom, compass) connect to it automatically
+    const sceneEl = document.getElementById("view");
+    await customElements.whenDefined("arcgis-scene");
+    sceneEl.qualityProfile = "high";
+    sceneEl.popupDisabled = true;                          // room popups are opened on click below
+    sceneEl.map = map;
+    sceneEl.camera = camAt(200, 62, 150, BASE + 16);
+    await sceneEl.viewOnReady();
+    const view = sceneEl.view;
+    view.environment.atmosphereEnabled = true;
+    view.environment.lighting = { type: "sun", date: new Date(Date.UTC(2025, 5, 21, 11, 30)), directShadowsEnabled: false };
+    try { view.popup.dockEnabled = true; view.popup.dockOptions = { position: "bottom-center", breakpoint: false }; } catch { /* popup created lazily */ }
 
     // ------------------------------------------------------------------
     // Level selection: the floor filter drives the floor-aware layers;
@@ -301,13 +308,12 @@
       if (tool) return;                                   // measuring
       const hit = await view.hitTest(e, { include: [unitsLayer] });
       const g = hit.results.find(r => r.graphic)?.graphic;
-      if (g) view.openPopup({ features: [g], location: e.mapPoint ?? hit.results[0].mapPoint });
-      else view.closePopup();
+      if (g) sceneEl.openPopup({ features: [g], location: e.mapPoint ?? hit.results[0].mapPoint });
+      else sceneEl.closePopup();
     });
 
     const ff = $("floorFilter");
     await customElements.whenDefined("arcgis-floor-filter");
-    ff.view = view;
     const selectLevel = (levelId) => {
       stacked = false; $("stack").setAttribute("aria-pressed", "false");
       ff.site = "CQ"; ff.facility = "CQ3"; ff.level = levelId;
