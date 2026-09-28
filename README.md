@@ -1,5 +1,7 @@
 # City Quays 3 — ArcGIS Indoors model
 
+**Live viewer:** https://pjmclaughlin1979.github.io/cq3/
+
 An indoor model of City Quays 3 (92 Donegall Quay, Belfast), generated from the
 RPP Architects general arrangement plans `CQ3_FP.pdf` (drawing series
 `2403-RPP-01-ZZ-DR-A-2xx`, scale 1:100).
