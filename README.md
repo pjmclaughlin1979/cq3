@@ -2,6 +2,9 @@
 
 **Live viewer:** https://pjmclaughlin1979.github.io/cq3/
 
+**Downloads:** [File geodatabase (CQ3_Indoors.gdb.zip)](https://pjmclaughlin1979.github.io/cq3/downloads/CQ3_Indoors.gdb.zip) ·
+GeoJSON: [Units](data/Units.geojson), [Levels](data/Levels.geojson), [Details](data/Details.geojson), [Facilities](data/Facilities.geojson), [Sites](data/Sites.geojson)
+
 An indoor model of City Quays 3 (92 Donegall Quay, Belfast), generated from the
 RPP Architects general arrangement plans `CQ3_FP.pdf` (drawing series
 `2403-RPP-01-ZZ-DR-A-2xx`, scale 1:100).
@@ -43,13 +46,24 @@ python3 tools/build.py                      # data/*.geojson from tools/work/
 tools/run.sh                                # full re-extraction from the PDF (~2 min per sheet)
 ```
 
+## File geodatabase
+
+`downloads/CQ3_Indoors.gdb.zip` holds `CQ3_Indoors.gdb` with feature classes
+Sites, Facilities, Levels, Units and Details, in Irish Transverse Mercator
+(EPSG:2157), Z-enabled with Z at each floor's elevation. Unzip it and add it to
+ArcGIS Pro. It is a plain geodatabase with Indoors layer and field names, not a
+full Indoors database (no domains, relationship classes or attribute rules);
+to get those, append it into a database made with **Create Indoors Database**
+(steps below). Rebuild it with `python3 tools/export_gdb.py`.
+
 ## Loading into ArcGIS Pro / ArcGIS Indoors
 
 1. Run **Create Indoors Database** (Indoors toolbox) to make an empty Indoors
    geodatabase in WGS 1984 or your project's coordinate system.
-2. Run **JSON To Features** on each GeoJSON file.
-3. Use **Append** (field mapping by name) to load them into the matching
-   Indoors feature classes: Sites, Facilities, Levels, Units, Details.
+2. Use **Append** (field mapping by name) to load the feature classes from
+   `CQ3_Indoors.gdb` into the matching Indoors feature classes: Sites,
+   Facilities, Levels, Units, Details. (Or run **JSON To Features** on the
+   GeoJSON files first and append those.)
 4. Set the map's floor-awareness (Map Properties → Floors) to the Sites,
    Facilities and Levels layers if Pro does not detect it automatically.
 
