@@ -152,6 +152,7 @@ def use_type(name, rid):
 
 # ---- levels -------------------------------------------------------------------------------
 GF_H, TYP_H = 5.0, 3.9               # assumed floor-to-floor heights (sections not supplied)
+BASE_ELEV = 3.5                      # ground floor level above datum (m); ELEVATION_ABSOLUTE = BASE_ELEV + ELEVATION_RELATIVE
 def footprint(rooms, src=None):
     if src == "00": return GF_OUTLINE
     u = unary_union([r["geom"] for r in rooms if not r["geom"].is_empty])
@@ -201,7 +202,7 @@ for num, src, how in PLAN:
     name = "Ground Floor" if num == 0 else f"Level {num:02d}"
     features["Levels"].append({"type": "Feature", "geometry": geo(fp), "properties": {
         "LEVEL_ID": lid, "NAME": name, "NAME_SHORT": f"{num:02d}", "LEVEL_NUMBER": num, "VERTICAL_ORDER": num,
-        "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "HEIGHT_RELATIVE": h,
+        "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "ELEVATION_ABSOLUTE": round(BASE_ELEV + elev, 2), "HEIGHT_RELATIVE": h,
         "SOURCE_SHEET": f"LV {src} - GA", "SOURCE_NOTE": how, "AREA_GROSS_M2": round(fp.area, 1)}})
     for k, r in enumerate(rooms):
         if r["geom"].is_empty: continue
@@ -212,7 +213,7 @@ for num, src, how in PLAN:
         err = None if r["err"] is None or r["area_label"] is None else round(100 * (r["area_model"] - r["area_label"]) / r["area_label"], 1)
         features["Units"].append({"type": "Feature", "geometry": geo(r["geom"]), "properties": {
             "UNIT_ID": uid, "NAME": r["name"] or (f"Space {rid}" if rid != "x" else "Space"), "USE_TYPE": use_type(r["name"], r["id"]),
-            "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "HEIGHT_RELATIVE": h,
+            "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "ELEVATION_ABSOLUTE": round(BASE_ELEV + elev, 2), "HEIGHT_RELATIVE": h,
             "ROOM_NUMBER": f"{num:02d}.{rid.split('.')[-1]}" if "." in rid else rid,
             "AREA_PLAN_M2": r["area_label"], "AREA_MODEL_M2": r["area_model"], "AREA_DIFF_PCT": err, "SOURCE_NOTE": how}})
         if how == "drawn": qa.append((num, rid, r["name"], r["area_label"], r["area_model"], err, r["method"]))
@@ -224,7 +225,7 @@ for num, src, how in PLAN:
                     "UNIT_ID": f"{FAC}.{num:02d}.T{len(features['Units'])}",
                     # LV14's step back is the roof over the LV13 Wellbeing Centre ("LV 14 ROOF" on the sheet)
                     "NAME": "Roof over Wellbeing Centre" if num == 14 else f"Level {num:02d} Terrace", "USE_TYPE": "Roof" if num == 14 else "Terrace",
-                    "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "HEIGHT_RELATIVE": 0,
+                    "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2), "ELEVATION_ABSOLUTE": round(BASE_ELEV + elev, 2), "HEIGHT_RELATIVE": 0,
                     "ROOM_NUMBER": None, "AREA_PLAN_M2": None, "AREA_MODEL_M2": round(p.area, 1), "AREA_DIFF_PCT": None,
                     "SOURCE_NOTE": "derived: floorplate below minus this floorplate"}})
     # keep only walls inside this floorplate (the sheets also carry landscaping, section and detail lines)
@@ -232,7 +233,8 @@ for num, src, how in PLAN:
     walls = [w for w in walls if inside.contains(w)]
     for i, w in enumerate(walls):
         features["Details"].append({"type": "Feature", "geometry": geo(w), "properties": {
-            "DETAIL_ID": f"{lid}.W{i}", "USE_TYPE": "Wall", "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2)}})
+            "DETAIL_ID": f"{lid}.W{i}", "USE_TYPE": "Wall", "LEVEL_ID": lid, "FACILITY_ID": FAC, "ELEVATION_RELATIVE": round(elev, 2),
+            "ELEVATION_ABSOLUTE": round(BASE_ELEV + elev, 2)}})
     prev_fp = fp
     elev += h
 
@@ -240,7 +242,7 @@ roof = elev
 fp_all = unary_union([footprint(sheets[s]["rooms"], s) for s in ("00", "04")])
 features["Facilities"].append({"type": "Feature", "geometry": geo(fp_all), "properties": {
     "FACILITY_ID": FAC, "NAME": "City Quays 3", "NAME_LONG": "City Quays 3, 92 Donegall Quay, Belfast BT1 3FE", "SITE_ID": "CQ",
-    "ELEVATION_RELATIVE": 0, "HEIGHT_RELATIVE": round(roof, 2), "HEIGHT_REPORTED_M": 70.3, "LEVELS": 16}})
+    "ELEVATION_RELATIVE": 0, "ELEVATION_ABSOLUTE": BASE_ELEV, "HEIGHT_RELATIVE": round(roof, 2), "HEIGHT_REPORTED_M": 70.3, "LEVELS": 16}})
 features["Sites"].append({"type": "Feature", "geometry": geo(fp_all.buffer(25, join_style=2)), "properties": {
     "SITE_ID": "CQ", "NAME": "City Quays", "NAME_LONG": "City Quays, Belfast Harbour"}})
 

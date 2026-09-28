@@ -2,7 +2,7 @@
 
 Feature classes use the ArcGIS Indoors layer names and field names. Geometry is
 projected to Irish Transverse Mercator (EPSG:2157, metres) and made Z-aware, with
-Z set to each feature's floor elevation (ELEVATION_RELATIVE).
+Z set to each feature's floor elevation above datum (ELEVATION_ABSOLUTE = 3.5 m + ELEVATION_RELATIVE).
 
     pip install geopandas pyogrio        # GDAL >= 3.6 (OpenFileGDB write support)
     python3 tools/export_gdb.py
@@ -24,7 +24,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 shutil.rmtree(GDB, ignore_errors=True)
 for name in LAYERS:
     gdf = gpd.read_file(os.path.join(DATA, f"{name}.geojson")).to_crs(CRS)
-    z = gdf["ELEVATION_RELATIVE"].fillna(0).astype(float).to_numpy() if "ELEVATION_RELATIVE" in gdf else 0.0
+    z = gdf["ELEVATION_ABSOLUTE"].fillna(0).astype(float).to_numpy() if "ELEVATION_ABSOLUTE" in gdf else 3.5   # site boundary at ground floor level
     gdf["geometry"] = shapely.force_3d(gdf.geometry.values, z)
     if gdf.geom_type.isin(["Polygon", "MultiPolygon"]).all():
         gdf["geometry"] = [shapely.MultiPolygon([g]) if g.geom_type == "Polygon" else g for g in gdf.geometry]

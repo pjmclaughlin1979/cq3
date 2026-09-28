@@ -9,8 +9,14 @@ An indoor model of City Quays 3 (92 Donegall Quay, Belfast), generated from the
 RPP Architects general arrangement plans `CQ3_FP.pdf` (drawing series
 `2403-RPP-01-ZZ-DR-A-2xx`, scale 1:100).
 
-* `index.html` — 3D viewer (ArcGIS Maps SDK for JavaScript 5.1) with a floor filter,
-  rooms coloured by use, extruded walls and a glass shell for the other floors.
+* `index.html` — 3D viewer (ArcGIS Maps SDK for JavaScript 5.1):
+  * `arcgis-floor-filter` to pick a level (the current 5.1 component for floor-aware Indoors data);
+  * a **Show features** filter to switch groups on and off (offices, lobbies, stairs, lifts,
+    toilets, plant, parking, amenities, terraces, walls, the glass floors above);
+  * **Measure**: 3D direct-line distance (`arcgis-direct-line-measurement-3d`) and area
+    (`arcgis-area-measurement-3d`);
+  * the ArcGIS Online World Elevation service as ground, with the satellite basemap;
+  * room popups with the printed vs modelled area.
   It must be served over HTTP (double-clicking `index.html` will not load the data):
 
   ```
@@ -25,7 +31,7 @@ RPP Architects general arrangement plans `CQ3_FP.pdf` (drawing series
 | --- | --- | --- |
 | `Sites.geojson` | polygon | City Quays site (`SITE_ID`) |
 | `Facilities.geojson` | polygon | the building (`FACILITY_ID` = `CQ3`) |
-| `Levels.geojson` | polygon | 16 floorplates, `LEVEL_ID`, `LEVEL_NUMBER`, `VERTICAL_ORDER`, `ELEVATION_RELATIVE`, `HEIGHT_RELATIVE` |
+| `Levels.geojson` | polygon | 16 floorplates, `LEVEL_ID`, `LEVEL_NUMBER`, `VERTICAL_ORDER`, `ELEVATION_RELATIVE`, `ELEVATION_ABSOLUTE`, `HEIGHT_RELATIVE` |
 | `Units.geojson` | polygon | rooms, cores, offices and terraces with `NAME`, `USE_TYPE`, `ROOM_NUMBER`, `LEVEL_ID` and an area check |
 | `Details.geojson` | line | wall faces (`USE_TYPE` = `Wall`) |
 
@@ -50,7 +56,7 @@ tools/run.sh                                # full re-extraction from the PDF (~
 
 `downloads/CQ3_Indoors.gdb.zip` holds `CQ3_Indoors.gdb` with feature classes
 Sites, Facilities, Levels, Units and Details, in Irish Transverse Mercator
-(EPSG:2157), Z-enabled with Z at each floor's elevation. Unzip it and add it to
+(EPSG:2157), Z-enabled with Z at each floor's absolute elevation (3.5 m ground floor). Unzip it and add it to
 ArcGIS Pro. It is a plain geodatabase with Indoors layer and field names, not a
 full Indoors database (no domains, relationship classes or attribute rules);
 to get those, append it into a database made with **Create Indoors Database**
@@ -104,6 +110,9 @@ vertical position.
   06, 08, 09, 13, 14 and 15. Levels 02, 03, 05, 07 and 10 copy the nearest
   typical floor; levels 11 and 12 are LV09 less the "LV 11 terrace" strip shown
   on the upper-floor sheets. `SOURCE_NOTE` records this for every level and unit.
+* **Ground floor level is 3.5 m.** `ELEVATION_ABSOLUTE` = 3.5 m + `ELEVATION_RELATIVE`;
+  the viewer and the geodatabase Z values use it, so the building sits at 3.5 m
+  on the World Elevation ground. Change `BASE_ELEV` in `tools/build.py` to adjust.
 * **Heights are assumed.** No sections were supplied: ground floor 5.0 m,
   typical floors 3.9 m floor-to-floor. The building is reported as 70.3 m tall
   including rooftop plant.

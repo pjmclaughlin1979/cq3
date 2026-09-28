@@ -24,13 +24,30 @@
     #levelCard .src.inferred { color: #b54708; }
     #stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 8px; font-size: 12px; color: #475467; font-variant-numeric: tabular-nums; }
     #stats span:nth-child(even) { text-align: right; color: var(--ink); font-weight: 600; }
-    #legend { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 11.5px; color: #475467; }
-    #legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    #filters { margin: 10px 0 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); min-width: 0; }
+    #filters legend { padding: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; width: 100%; align-items: center; }
+    #filters legend span { flex: 1; }
+    #filters .link { border: 0; background: none; color: var(--accent); font: 600 11.5px Inter, system-ui, sans-serif; cursor: pointer; padding: 2px 4px; text-transform: none; letter-spacing: 0; }
+    #filterList { display: grid; gap: 2px; margin-top: 6px; }
+    #filterList label { display: grid; grid-template-columns: 18px auto 1fr auto; align-items: center; gap: 6px; font-size: 12.5px; color: #344054; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+    #filterList label:hover { background: rgba(28,34,48,.05); }
+    #filterList label.off { color: #98a2b3; }
+    #filterList input { margin: 0; accent-color: var(--accent); }
+    #filterList .sw { display: inline-flex; gap: 2px; }
+    #filterList .sw i { width: 9px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,.12); }
+    #filterList .n { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11.5px; }
+    #filterList .sep { border-top: 1px dashed var(--line); margin: 4px 0 2px; }
     #toggle { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; }
     #info.collapsed #body { display: none; }
     #floors { position: absolute; top: 16px; right: 16px; width: auto; max-height: calc(100vh - 32px); overflow: auto; }
     #floors arcgis-floor-filter { display: block; }
     #tools { position: absolute; bottom: 24px; right: 16px; display: flex; gap: 8px; }
+    #measure { position: absolute; bottom: 74px; right: 16px; width: 330px; max-width: calc(100vw - 32px); padding: 10px; overflow: hidden; }
+    #measure[hidden] { display: none; }
+    #measure .row { display: flex; gap: 6px; margin-bottom: 8px; }
+    #measure .row .btn { flex: 1; height: 32px; }
+    #measure arcgis-direct-line-measurement-3d, #measure arcgis-area-measurement-3d { display: block; width: 100%; }
+    #measure [hidden] { display: none !important; }
     .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; height: 38px; padding: 0 12px; font: 600 12.5px Inter, system-ui, sans-serif; color: var(--ink); cursor: pointer; }
     .btn[aria-pressed="true"] { background: var(--ink); color: #fff; }
     .btn:focus-visible { outline: 3px solid rgba(15,110,140,.4); outline-offset: 2px; }
@@ -40,6 +57,7 @@
       #info { width: auto; right: 16px; top: auto; bottom: 16px; max-height: 45vh; overflow: auto; }
       #floors { width: 170px; max-height: 45vh; }
       #tools { bottom: auto; top: 16px; left: 16px; right: auto; }
+      #measure { bottom: auto; top: 64px; left: 16px; right: auto; width: 250px; }
     }
   </style>
 </head>
@@ -54,7 +72,10 @@
       <p>16 storeys of Grade A offices at 92 Donegall Quay. Rooms, cores and walls were extracted from the RPP Architects general arrangement plans (1:100) and checked against the areas printed on each plan.</p>
       <p style="font-size:12px;margin:0">Download: <a href="downloads/CQ3_Indoors.gdb.zip">File geodatabase</a> · <a href="data/Units.geojson">Units GeoJSON</a> · <a href="https://github.com/pjmclaughlin1979/cq3">Repository</a></p>
       <div id="levelCard"></div>
-      <div id="legend"></div>
+      <fieldset id="filters">
+        <legend><span>Show features</span><button class="link" id="fAll" type="button">All</button><button class="link" id="fNone" type="button">None</button></legend>
+        <div id="filterList"></div>
+      </fieldset>
     </div>
   </section>
 
@@ -62,17 +83,28 @@
     <arcgis-floor-filter id="floorFilter"></arcgis-floor-filter>
   </section>
 
+  <section id="measure" class="panel" hidden aria-label="Measure">
+    <div class="row">
+      <button id="mDistance" class="btn" aria-pressed="false" title="Measure a straight-line distance">Distance</button>
+      <button id="mArea" class="btn" aria-pressed="false" title="Measure an area">Area</button>
+      <button id="mClear" class="btn" title="Clear the measurement">Clear</button>
+    </div>
+    <arcgis-direct-line-measurement-3d id="mLine"></arcgis-direct-line-measurement-3d>
+    <arcgis-area-measurement-3d id="mPoly" hidden></arcgis-area-measurement-3d>
+  </section>
+
   <div id="tools">
+    <button id="measureBtn" class="btn" aria-pressed="false" aria-controls="measure" title="Measure distances and areas">Measure</button>
     <button id="stack" class="btn" aria-pressed="false" title="Show every level at once">All levels</button>
     <button id="home" class="btn" title="Reset the view">Reset view</button>
   </div>
   <div id="loader">Loading model</div>
 
   <script type="module">
-    const [WebScene, SceneView, FeatureLayer, Graphic, Polygon, Polyline, MapFloorInfo, Camera, Point] = await $arcgis.import([
+    const [WebScene, SceneView, FeatureLayer, Graphic, Polygon, Polyline, MapFloorInfo, Camera, Point, FeatureFilter] = await $arcgis.import([
       "@arcgis/core/WebScene.js", "@arcgis/core/views/SceneView.js", "@arcgis/core/layers/FeatureLayer.js", "@arcgis/core/Graphic.js",
       "@arcgis/core/geometry/Polygon.js", "@arcgis/core/geometry/Polyline.js", "@arcgis/core/support/MapFloorInfo.js",
-      "@arcgis/core/Camera.js", "@arcgis/core/geometry/Point.js"
+      "@arcgis/core/Camera.js", "@arcgis/core/geometry/Point.js", "@arcgis/core/layers/support/FeatureFilter.js"
     ]);
 
     // ------------------------------------------------------------------
@@ -101,7 +133,9 @@
       for (const feat of fc.features) for (const k of Object.keys(feat.properties)) if (!seen.has(k)) { seen.add(k); f.push({ name: k, type: "string" }); }
       return f;
     };
-    const ELEV = { mode: "absolute-height", featureExpressionInfo: { expression: "$feature.ELEVATION_RELATIVE" }, unit: "meters" };
+    // floors sit at ELEVATION_ABSOLUTE: 3.5 m (ground floor level) + ELEVATION_RELATIVE
+    const BASE = facilities.features[0].properties.ELEVATION_ABSOLUTE ?? 3.5;
+    const ELEV = { mode: "absolute-height", featureExpressionInfo: { expression: "$feature.ELEVATION_ABSOLUTE" }, unit: "meters" };
     const layer = (id, fc, geometryType, extra = {}) => new FeatureLayer(Object.assign({
       id, title: id, source: toGraphics(fc), fields: fieldsOf(fc), objectIdField: "OBJECTID", geometryType,
       spatialReference: { wkid: 4326 }, outFields: ["*"]
@@ -157,6 +191,7 @@
     // the floor filter requires a WebScene (or WebMap) carrying floorInfo
     const map = new WebScene({
       basemap: "satellite",
+      ground: "world-elevation",                        // ArcGIS Online World Elevation service
       layers: [sitesLayer, facilitiesLayer, shellBelow, levelsLayer, unitsLayer, wallsLayer, shellAbove],
       floorInfo: new MapFloorInfo({
         siteLayer: { layerId: "Sites", siteIdField: "SITE_ID", nameField: "NAME" },
@@ -178,9 +213,10 @@
     const levelById = Object.fromEntries(levelsByOrder.map(l => [l.LEVEL_ID, l]));
 
     const view = new SceneView({
-      container: "view", map, camera: camAt(200, 62, 150, 16), qualityProfile: "high", ui: { components: [] },
+      container: "view", map, camera: camAt(200, 62, 150, BASE + 16), qualityProfile: "high", ui: { components: [] },
       environment: { atmosphereEnabled: true, lighting: { type: "sun", date: new Date(Date.UTC(2025, 5, 21, 11, 30)), directShadowsEnabled: false } },
-      popup: { dockEnabled: true, dockOptions: { position: "bottom-left", breakpoint: false } }
+      popupEnabled: false,
+      popup: { dockEnabled: true, dockOptions: { position: "bottom-center", breakpoint: false } }
     });
 
     // ------------------------------------------------------------------
@@ -192,6 +228,7 @@
     for (const f of units.features) (unitsByLevel[f.properties.LEVEL_ID] ||= []).push(f.properties);
     let stacked = false;
     function showLevel(levelId) {
+      if (typeof renderFilters === "function") renderFilters(stacked ? null : levelId);
       const lv = levelById[levelId];
       if (!lv || stacked) {
         shellBelow.definitionExpression = "1=0"; shellAbove.definitionExpression = stacked ? "1=0" : "1=1";
@@ -205,20 +242,72 @@
       const checked = us.filter(u => u.AREA_DIFF_PCT !== null && u.AREA_DIFF_PCT !== undefined);
       const within = checked.filter(u => Math.abs(u.AREA_DIFF_PCT) <= 10).length;
       const inferred = !lv.SOURCE_NOTE.startsWith("drawn");
-      $("levelCard").innerHTML = `<b>${lv.NAME}</b> · floor at ${lv.ELEVATION_RELATIVE.toFixed(1)} m
+      $("levelCard").innerHTML = `<b>${lv.NAME}</b> · floor at ${lv.ELEVATION_ABSOLUTE.toFixed(1)} m
         <div class="src ${inferred ? "inferred" : ""}">${inferred ? "⚠ " + lv.SOURCE_NOTE : "Drawn on sheet " + lv.SOURCE_SHEET}</div>
         <div id="stats"><span>Gross floorplate</span><span>${lv.AREA_GROSS_M2.toLocaleString()} m²</span>
         <span>Office</span><span>${sum(u => u.USE_TYPE === "Office").toFixed(1)} m²</span>
         <span>Rooms</span><span>${us.length}</span>
         <span>Area check (±10%)</span><span>${checked.length ? `${within} / ${checked.length}` : "n/a"}</span></div>`;
     }
-    const legendTypes = [...new Set(units.features.map(f => f.properties.USE_TYPE))].sort();
-    $("legend").innerHTML = legendTypes.map(t => `<span><i style="background:rgb(${(USE[t] || USE.Unassigned).join(",")})"></i>${t}</span>`).join("");
+    // ------------------------------------------------------------------
+    // Feature filter: switch groups of units (and walls / glass shell) on and off
+    // ------------------------------------------------------------------
+    const GROUPS = [
+      ["Offices", ["Office"]],
+      ["Lobbies & circulation", ["Reception", "Circulation", "Lift Lobby", "Firefighting Lobby"]],
+      ["Stairs", ["Stairs"]],
+      ["Lifts", ["Elevator"]],
+      ["Toilets", ["Restroom - Male", "Restroom - Female", "Restroom - Accessible"]],
+      ["Plant & services", ["Mechanical", "Electrical / Data", "Janitor", "Refuse Store"]],
+      ["Parking", ["Parking"]],
+      ["Amenities", ["Support", "Wellbeing"]],
+      ["Terraces & roofs", ["Terrace", "Roof"]],
+      ["Unassigned", ["Unassigned"]]
+    ].filter(([, types]) => units.features.some(f => types.includes(f.properties.USE_TYPE)));
+    const hidden = new Set();
+    let unitsView = null;
+    const esc = (t) => t.replace(/'/g, "''");
+    function applyFilter() {
+      const off = GROUPS.filter(([g]) => hidden.has(g)).flatMap(([, t]) => t);
+      if (unitsView) unitsView.filter = off.length ? new FeatureFilter({ where: `USE_TYPE NOT IN (${off.map(t => `'${esc(t)}'`).join(",")})` }) : null;
+      wallsLayer.visible = !hidden.has("__walls");
+      shellAbove.opacity = hidden.has("__shell") ? 0 : 1;
+      document.querySelectorAll("#filterList label").forEach(l => l.classList.toggle("off", hidden.has(l.dataset.group)));
+    }
+    function renderFilters(levelId) {
+      const pool = levelId ? (unitsByLevel[levelId] || []) : units.features.map(f => f.properties);
+      $("filterList").innerHTML = GROUPS.map(([g, types]) => {
+        const n = pool.filter(u => types.includes(u.USE_TYPE)).length;
+        const sw = types.map(t => `<i style="background:rgb(${(USE[t] || USE.Unassigned).join(",")})" title="${t}"></i>`).join("");
+        return `<label data-group="${g}" title="${types.join(", ")}"><input type="checkbox" ${hidden.has(g) ? "" : "checked"}><span class="sw">${sw}</span><span>${g}</span><span class="n">${n}</span></label>`;
+      }).join("") + `<div class="sep"></div>` +
+        `<label data-group="__walls"><input type="checkbox" ${hidden.has("__walls") ? "" : "checked"}><span class="sw"><i style="background:rgb(132,140,154)"></i></span><span>Walls</span><span class="n"></span></label>` +
+        `<label data-group="__shell"><input type="checkbox" ${hidden.has("__shell") ? "" : "checked"}><span class="sw"><i style="background:rgba(160,200,225,.5)"></i></span><span>Floors above (glass)</span><span class="n"></span></label>`;
+      applyFilter();
+    }
+    $("filterList").addEventListener("change", (e) => {
+      const g = e.target.closest("label")?.dataset.group;
+      if (!g) return;
+      e.target.checked ? hidden.delete(g) : hidden.add(g);
+      applyFilter();
+    });
+    $("fAll").addEventListener("click", () => { hidden.clear(); renderFilters(stacked ? null : ff.level); });
+    $("fNone").addEventListener("click", () => { GROUPS.forEach(([g]) => hidden.add(g)); renderFilters(stacked ? null : ff.level); });
+    view.whenLayerView(unitsLayer).then(lv => { unitsView = lv; applyFilter(); });
+
+    let tool = null;                                      // active measurement tool
+    // Room popups: hit-test the rooms only, so the glass shell above the floor does not catch the click
+    view.on("click", async (e) => {
+      if (tool) return;                                   // measuring
+      const hit = await view.hitTest(e, { include: [unitsLayer] });
+      const g = hit.results.find(r => r.graphic)?.graphic;
+      if (g) view.openPopup({ features: [g], location: e.mapPoint ?? hit.results[0].mapPoint });
+      else view.closePopup();
+    });
 
     const ff = $("floorFilter");
     await customElements.whenDefined("arcgis-floor-filter");
     ff.view = view;
-    ff.addEventListener("arcgisPropertyChange", () => showLevel(ff.level));
     const selectLevel = (levelId) => {
       stacked = false; $("stack").setAttribute("aria-pressed", "false");
       ff.site = "CQ"; ff.facility = "CQ3"; ff.level = levelId;
@@ -230,7 +319,7 @@
       if (stacked) { view.floors = []; showLevel(null); }
       else selectLevel(ff.level || "CQ3.L04");
     });
-    $("home").addEventListener("click", () => view.goTo(camAt(200, 62, 150, 16 + (levelById[ff.level]?.ELEVATION_RELATIVE || 0)), { duration: 1500 }));
+    $("home").addEventListener("click", () => view.goTo(camAt(200, 62, 150, BASE + 16 + (levelById[ff.level]?.ELEVATION_RELATIVE || 0)), { duration: 1500 }));
     $("toggle").addEventListener("click", () => {
       const c = $("info").classList.toggle("collapsed");
       $("toggle").textContent = c ? "▸" : "▾"; $("toggle").setAttribute("aria-expanded", String(!c));
@@ -245,12 +334,34 @@
       if (want.join() !== have.join()) view.floors = want;
       if (lv && lv !== lastLevel && !stacked) {
         lastLevel = lv; showLevel(lv); view.floors = [lv];
-        const cam = view.camera.clone(), z = levelById[lv]?.ELEVATION_RELATIVE ?? 0;
+        const cam = view.camera.clone(), z = levelById[lv]?.ELEVATION_ABSOLUTE ?? BASE;
         view.goTo({ target: new Point({ longitude: CEN[0], latitude: CEN[1], z }), heading: cam.heading, tilt: cam.tilt }, { duration: 900 }).catch(() => {});
       }
     }, 300);
 
-    window.cq3 = { view, selectLevel, ff, get stacked() { return stacked; } };
+    // Measurement: 3D direct-line distance (with horizontal and vertical components) and area
+    const mLine = $("mLine"), mPoly = $("mPoly"), measurePanel = $("measure"), measureBtn = $("measureBtn");
+    await Promise.all(["arcgis-direct-line-measurement-3d", "arcgis-area-measurement-3d"].map(t => customElements.whenDefined(t)));
+    mLine.view = view; mPoly.view = view;
+    const clearAll = () => { mLine.clear?.(); mPoly.clear?.(); };
+    const setTool = (t) => {
+      tool = t;
+      mLine.hidden = t !== "distance"; mPoly.hidden = t !== "area";
+      $("mDistance").setAttribute("aria-pressed", String(t === "distance"));
+      $("mArea").setAttribute("aria-pressed", String(t === "area"));
+      if (t === "distance") { mPoly.clear?.(); mLine.start?.(); }
+      if (t === "area") { mLine.clear?.(); mPoly.start?.(); }
+    };
+    measureBtn.addEventListener("click", () => {
+      const open = measurePanel.hidden;
+      measurePanel.hidden = !open; measureBtn.setAttribute("aria-pressed", String(open));
+      if (open) setTool("distance"); else { clearAll(); setTool(null); }
+    });
+    $("mDistance").addEventListener("click", () => setTool("distance"));
+    $("mArea").addEventListener("click", () => setTool("area"));
+    $("mClear").addEventListener("click", () => { clearAll(); setTool(tool); });
+
+    window.cq3 = { view, selectLevel, ff, mLine, mPoly, get stacked() { return stacked; } };
     await view.when();
     selectLevel("CQ3.L04");
     lastLevel = "CQ3.L04";
