@@ -16,7 +16,7 @@ os.makedirs(OUT, exist_ok=True)
 # Local frame: metres, origin at grid intersection A/01, x to the right of the sheet, y up the sheet.
 # The sheet's north arrow points 35.5 degrees anticlockwise of sheet-up, so sheet-up bears 35.5 deg.
 BEARING = 35.5
-ANCHOR = (54.60438, -5.91984)        # building centre: first estimate moved 60 m north-east after checking against imagery
+ANCHOR = (54.6047265, -5.9191272)   # building centre: first estimate moved 60 m NE, then 60 m at bearing 50 deg, to match imagery
 T = math.radians(BEARING)
 
 SHEETS = {0: "00", 1: "01", 2: "04", 3: "06", 4: "08", 5: "09", 6: "13", 7: "14", 8: "15"}
