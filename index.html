@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>City Quays 3 Indoors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://js.arcgis.com/5.1/esri/themes/light/main.css" />
+  <script type="module" src="https://js.arcgis.com/5.1/"></script>
+  <style>
+    :root { --ink: #1c2230; --muted: #667085; --panel: rgba(255,255,255,.9); --line: rgba(28,34,48,.1); --accent: #0f6e8c; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #eef1f4; font-family: Inter, system-ui, sans-serif; color: var(--ink); }
+    #view { position: absolute; inset: 0; }
+    .panel { background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 28px rgba(20,24,32,.12); }
+    #info { position: absolute; top: 16px; left: 16px; width: 320px; max-width: calc(100vw - 32px); padding: 16px 18px; }
+    #info .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    #info h1 { font-size: 19px; margin: 4px 0 8px; }
+    #info p { font-size: 13px; line-height: 1.5; color: #475467; margin: 0 0 8px; }
+    #levelCard { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; }
+    #levelCard b { font-size: 15px; }
+    #levelCard .src { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    #levelCard .src.inferred { color: #b54708; }
+    #stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 8px; font-size: 12px; color: #475467; font-variant-numeric: tabular-nums; }
+    #stats span:nth-child(even) { text-align: right; color: var(--ink); font-weight: 600; }
+    #legend { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 11.5px; color: #475467; }
+    #legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    #toggle { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+    #info.collapsed #body { display: none; }
+    #floors { position: absolute; top: 16px; right: 16px; width: auto; max-height: calc(100vh - 32px); overflow: auto; }
+    #floors arcgis-floor-filter { display: block; }
+    #tools { position: absolute; bottom: 24px; right: 16px; display: flex; gap: 8px; }
+    .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; height: 38px; padding: 0 12px; font: 600 12.5px Inter, system-ui, sans-serif; color: var(--ink); cursor: pointer; }
+    .btn[aria-pressed="true"] { background: var(--ink); color: #fff; }
+    .btn:focus-visible { outline: 3px solid rgba(15,110,140,.4); outline-offset: 2px; }
+    #loader { position: absolute; inset: 0; display: grid; place-items: center; background: #eef1f4; z-index: 5; font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; transition: opacity .6s; }
+    #loader.gone { opacity: 0; pointer-events: none; }
+    @media (max-width: 720px) {
+      #info { width: auto; right: 16px; top: auto; bottom: 16px; max-height: 45vh; overflow: auto; }
+      #floors { width: 170px; max-height: 45vh; }
+      #tools { bottom: auto; top: 16px; left: 16px; right: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="view" aria-label="3D indoor model of City Quays 3"></div>
+
+  <section id="info" class="panel" aria-live="polite">
+    <button id="toggle" aria-expanded="true" aria-label="Collapse panel" title="Collapse panel">▾</button>
+    <div class="eyebrow">ArcGIS Indoors model</div>
+    <h1>City Quays 3, Belfast</h1>
+    <div id="body">
+      <p>16 storeys of Grade A offices at 92 Donegall Quay. Rooms, cores and walls were extracted from the RPP Architects general arrangement plans (1:100) and checked against the areas printed on each plan.</p>
+      <div id="levelCard"></div>
+      <div id="legend"></div>
+    </div>
+  </section>
+
+  <section id="floors" class="panel">
+    <arcgis-floor-filter id="floorFilter"></arcgis-floor-filter>
+  </section>
+
+  <div id="tools">
+    <button id="stack" class="btn" aria-pressed="false" title="Show every level at once">All levels</button>
+    <button id="home" class="btn" title="Reset the view">Reset view</button>
+  </div>
+  <div id="loader">Loading model</div>
+
+  <script type="module">
+    const [WebScene, SceneView, FeatureLayer, Graphic, Polygon, Polyline, MapFloorInfo, Camera, Point] = await $arcgis.import([
+      "@arcgis/core/WebScene.js", "@arcgis/core/views/SceneView.js", "@arcgis/core/layers/FeatureLayer.js", "@arcgis/core/Graphic.js",
+      "@arcgis/core/geometry/Polygon.js", "@arcgis/core/geometry/Polyline.js", "@arcgis/core/support/MapFloorInfo.js",
+      "@arcgis/core/Camera.js", "@arcgis/core/geometry/Point.js"
+    ]);
+
+    // ------------------------------------------------------------------
+    // Data: GeoJSON in the ArcGIS Indoors layer structure (Sites,
+    // Facilities, Levels, Units, Details), loaded into client-side
+    // feature layers so the page works from any static host.
+    // ------------------------------------------------------------------
+    const load = async (name) => (await fetch(`data/${name}.geojson`)).json();
+    const [sites, facilities, levels, units, details] = await Promise.all(["Sites", "Facilities", "Levels", "Units", "Details"].map(load));
+
+    const toGraphics = (fc) => fc.features.map((f, i) => {
+      const g = f.geometry, props = { ...f.properties, OBJECTID: i + 1 };
+      let geometry;
+      if (g.type === "Polygon") geometry = new Polygon({ rings: g.coordinates, spatialReference: { wkid: 4326 } });
+      else if (g.type === "MultiPolygon") geometry = new Polygon({ rings: g.coordinates.flat(), spatialReference: { wkid: 4326 } });
+      else geometry = new Polyline({ paths: [g.coordinates], spatialReference: { wkid: 4326 } });
+      return new Graphic({ geometry, attributes: props });
+    });
+    const fieldsOf = (fc) => {
+      const f = [{ name: "OBJECTID", type: "oid" }], seen = new Set();
+      for (const feat of fc.features) for (const [k, v] of Object.entries(feat.properties)) {
+        if (seen.has(k)) continue;
+        if (v === null) continue;
+        seen.add(k); f.push({ name: k, type: typeof v === "number" ? "double" : "string" });
+      }
+      for (const feat of fc.features) for (const k of Object.keys(feat.properties)) if (!seen.has(k)) { seen.add(k); f.push({ name: k, type: "string" }); }
+      return f;
+    };
+    const ELEV = { mode: "absolute-height", featureExpressionInfo: { expression: "$feature.ELEVATION_RELATIVE" }, unit: "meters" };
+    const layer = (id, fc, geometryType, extra = {}) => new FeatureLayer(Object.assign({
+      id, title: id, source: toGraphics(fc), fields: fieldsOf(fc), objectIdField: "OBJECTID", geometryType,
+      spatialReference: { wkid: 4326 }, outFields: ["*"]
+    }, extra));
+
+    // colours by use type
+    const USE = {
+      "Office": [216, 228, 238], "Circulation": [244, 236, 214], "Lift Lobby": [244, 226, 186], "Firefighting Lobby": [241, 196, 170],
+      "Elevator": [150, 164, 186], "Stairs": [182, 170, 206], "Restroom - Male": [168, 206, 226], "Restroom - Female": [226, 178, 200],
+      "Restroom - Accessible": [150, 200, 176], "Mechanical": [200, 200, 196], "Electrical / Data": [240, 206, 120],
+      "Janitor": [210, 190, 160], "Refuse Store": [176, 160, 140], "Support": [196, 222, 168], "Parking": [190, 190, 200],
+      "Wellbeing": [160, 214, 200], "Reception": [250, 214, 150], "Terrace": [160, 186, 132], "Roof": [170, 176, 184], "Unassigned": [230, 230, 230]
+    };
+    const unitSymbol = (c) => ({ type: "polygon-3d", symbolLayers: [{ type: "extrude", size: 0.12, material: { color: c }, edges: { type: "solid", color: [60, 70, 90, 0.35], size: 0.6 } }] });
+    const unitsLayer = layer("Units", units, "polygon", {
+      elevationInfo: ELEV, floorInfo: { floorField: "LEVEL_ID" },
+      renderer: { type: "unique-value", field: "USE_TYPE", defaultSymbol: unitSymbol(USE.Unassigned),
+        uniqueValueInfos: Object.entries(USE).map(([value, c]) => ({ value, symbol: unitSymbol(c), label: value })) },
+      labelingInfo: [{
+        labelExpressionInfo: { expression: "IIF($feature.USE_TYPE == 'Office' || $feature.AREA_MODEL_M2 > 12, $feature.NAME, '')" },
+        symbol: { type: "label-3d", symbolLayers: [{ type: "text", material: { color: [28, 34, 48] }, halo: { color: [255, 255, 255, 0.9], size: 1 }, size: 9 }] },
+      }],
+      popupTemplate: {
+        title: "{NAME}",
+        content: [{ type: "fields", fieldInfos: [
+          { fieldName: "ROOM_NUMBER", label: "Room number" }, { fieldName: "USE_TYPE", label: "Use" },
+          { fieldName: "AREA_PLAN_M2", label: "Area on plan (m²)" }, { fieldName: "AREA_MODEL_M2", label: "Area in model (m²)" },
+          { fieldName: "AREA_DIFF_PCT", label: "Difference (%)" }, { fieldName: "SOURCE_NOTE", label: "Source" }] }]
+      }
+    });
+    const wallsLayer = layer("Details", details, "polyline", {
+      elevationInfo: ELEV, floorInfo: { floorField: "LEVEL_ID" }, popupEnabled: false,
+      renderer: { type: "simple", symbol: { type: "line-3d", symbolLayers: [{ type: "path", profile: "quad", width: 0.18, height: 2.7, anchor: "bottom", material: { color: [132, 140, 154] }, cap: "butt" }] } }
+    });
+    // Level footprints: floor-aware for the floor filter; a second, non-filtered copy draws the glass shell
+    // the floor slab sits just below the rooms so their colours stay visible
+    const levelsLayer = layer("Levels", levels, "polygon", {
+      elevationInfo: { ...ELEV, offset: -0.3 }, floorInfo: { floorField: "LEVEL_ID" }, popupEnabled: false,
+      renderer: { type: "simple", symbol: { type: "polygon-3d", symbolLayers: [{ type: "extrude", size: 0.3, material: { color: [196, 202, 210] } }] } }
+    });
+    const shellSym = (c, edges) => ({ type: "polygon-3d", symbolLayers: [{ type: "extrude", material: { color: c }, edges: { type: "solid", color: edges, size: 0.8 } }] });
+    const shellBelow = layer("ShellBelow", levels, "polygon", {
+      elevationInfo: ELEV, popupEnabled: false,
+      renderer: { type: "simple", symbol: shellSym([236, 238, 242, 1], [120, 130, 146, 0.6]), visualVariables: [{ type: "size", field: "HEIGHT_RELATIVE", valueUnit: "meters" }] }
+    });
+    const shellAbove = layer("ShellAbove", levels, "polygon", {
+      elevationInfo: ELEV, popupEnabled: false,
+      renderer: { type: "simple", symbol: shellSym([160, 200, 225, 0.12], [90, 130, 160, 0.35]), visualVariables: [{ type: "size", field: "HEIGHT_RELATIVE", valueUnit: "meters" }] }
+    });
+    const facilitiesLayer = layer("Facilities", facilities, "polygon", { popupEnabled: false, renderer: { type: "simple", symbol: { type: "polygon-3d", symbolLayers: [{ type: "fill", material: { color: [0, 0, 0, 0] }, outline: { color: [0, 0, 0, 0] } }] } } });
+    const sitesLayer = layer("Sites", sites, "polygon", { popupEnabled: false, renderer: { type: "simple", symbol: { type: "polygon-3d", symbolLayers: [{ type: "fill", material: { color: [210, 214, 220, 0.5] }, outline: { color: [120, 130, 146, 0.8], size: 1 } }] } } });
+
+    // the floor filter requires a WebScene (or WebMap) carrying floorInfo
+    const map = new WebScene({
+      basemap: "satellite",
+      layers: [sitesLayer, facilitiesLayer, shellBelow, levelsLayer, unitsLayer, wallsLayer, shellAbove],
+      floorInfo: new MapFloorInfo({
+        siteLayer: { layerId: "Sites", siteIdField: "SITE_ID", nameField: "NAME" },
+        facilityLayer: { layerId: "Facilities", facilityIdField: "FACILITY_ID", siteIdField: "SITE_ID", nameField: "NAME" },
+        levelLayer: { layerId: "Levels", levelIdField: "LEVEL_ID", facilityIdField: "FACILITY_ID", levelNumberField: "LEVEL_NUMBER", verticalOrderField: "VERTICAL_ORDER", longNameField: "NAME", shortNameField: "NAME_SHORT" }
+      })
+    });
+    map.ground.surfaceColor = [226, 229, 232];
+
+    // centre of the building and a default camera
+    const fac = facilities.features[0], ring = fac.geometry.type === "Polygon" ? fac.geometry.coordinates[0] : fac.geometry.coordinates[0][0];
+    const CEN = ring.reduce((a, c) => [a[0] + c[0] / ring.length, a[1] + c[1] / ring.length], [0, 0]);
+    const camAt = (heading, tilt, dist, z) => {
+      const hr = heading * Math.PI / 180, tr = tilt * Math.PI / 180, horiz = Math.sin(tr) * dist;
+      const lat = CEN[1] - Math.cos(hr) * horiz / 111320, lon = CEN[0] - Math.sin(hr) * horiz / (111320 * Math.cos(CEN[1] * Math.PI / 180));
+      return new Camera({ position: new Point({ longitude: lon, latitude: lat, z: z + Math.cos(tr) * dist }), heading, tilt, fov: 50 });
+    };
+    const levelsByOrder = levels.features.map(f => f.properties).sort((a, b) => a.VERTICAL_ORDER - b.VERTICAL_ORDER);
+    const levelById = Object.fromEntries(levelsByOrder.map(l => [l.LEVEL_ID, l]));
+
+    const view = new SceneView({
+      container: "view", map, camera: camAt(200, 62, 150, 16), qualityProfile: "high", ui: { components: [] },
+      environment: { atmosphereEnabled: true, lighting: { type: "sun", date: new Date(Date.UTC(2025, 5, 21, 11, 30)), directShadowsEnabled: false } },
+      popup: { dockEnabled: true, dockOptions: { position: "bottom-left", breakpoint: false } }
+    });
+
+    // ------------------------------------------------------------------
+    // Level selection: the floor filter drives the floor-aware layers;
+    // the shell shows the floors below solid and those above as glass
+    // ------------------------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    const unitsByLevel = {};
+    for (const f of units.features) (unitsByLevel[f.properties.LEVEL_ID] ||= []).push(f.properties);
+    let stacked = false;
+    function showLevel(levelId) {
+      const lv = levelById[levelId];
+      if (!lv || stacked) {
+        shellBelow.definitionExpression = "1=0"; shellAbove.definitionExpression = stacked ? "1=0" : "1=1";
+        $("levelCard").innerHTML = stacked ? "<b>All levels</b><div class='src'>Every floor shown at its height.</div>" : "";
+        return;
+      }
+      shellBelow.definitionExpression = `VERTICAL_ORDER < ${lv.VERTICAL_ORDER}`;
+      shellAbove.definitionExpression = `VERTICAL_ORDER > ${lv.VERTICAL_ORDER}`;
+      const us = (unitsByLevel[levelId] || []);
+      const sum = (pred) => us.filter(pred).reduce((s, u) => s + (u.AREA_MODEL_M2 || 0), 0);
+      const checked = us.filter(u => u.AREA_DIFF_PCT !== null && u.AREA_DIFF_PCT !== undefined);
+      const within = checked.filter(u => Math.abs(u.AREA_DIFF_PCT) <= 10).length;
+      const inferred = !lv.SOURCE_NOTE.startsWith("drawn");
+      $("levelCard").innerHTML = `<b>${lv.NAME}</b> · floor at ${lv.ELEVATION_RELATIVE.toFixed(1)} m
+        <div class="src ${inferred ? "inferred" : ""}">${inferred ? "⚠ " + lv.SOURCE_NOTE : "Drawn on sheet " + lv.SOURCE_SHEET}</div>
+        <div id="stats"><span>Gross floorplate</span><span>${lv.AREA_GROSS_M2.toLocaleString()} m²</span>
+        <span>Office</span><span>${sum(u => u.USE_TYPE === "Office").toFixed(1)} m²</span>
+        <span>Rooms</span><span>${us.length}</span>
+        <span>Area check (±10%)</span><span>${checked.length ? `${within} / ${checked.length}` : "n/a"}</span></div>`;
+    }
+    const legendTypes = [...new Set(units.features.map(f => f.properties.USE_TYPE))].sort();
+    $("legend").innerHTML = legendTypes.map(t => `<span><i style="background:rgb(${(USE[t] || USE.Unassigned).join(",")})"></i>${t}</span>`).join("");
+
+    const ff = $("floorFilter");
+    await customElements.whenDefined("arcgis-floor-filter");
+    ff.view = view;
+    ff.addEventListener("arcgisPropertyChange", () => showLevel(ff.level));
+    const selectLevel = (levelId) => {
+      stacked = false; $("stack").setAttribute("aria-pressed", "false");
+      ff.site = "CQ"; ff.facility = "CQ3"; ff.level = levelId;
+      view.floors = [levelId];
+      showLevel(levelId);
+    };
+    $("stack").addEventListener("click", () => {
+      stacked = !stacked; $("stack").setAttribute("aria-pressed", String(stacked));
+      if (stacked) { view.floors = []; showLevel(null); }
+      else selectLevel(ff.level || "CQ3.L04");
+    });
+    $("home").addEventListener("click", () => view.goTo(camAt(200, 62, 150, 16 + (levelById[ff.level]?.ELEVATION_RELATIVE || 0)), { duration: 1500 }));
+    $("toggle").addEventListener("click", () => {
+      const c = $("info").classList.toggle("collapsed");
+      $("toggle").textContent = c ? "▸" : "▾"; $("toggle").setAttribute("aria-expanded", String(!c));
+    });
+    // follow the selected level with the camera height, and keep the view filtered to it
+    // (the floor filter can clear its selection while it initialises)
+    let lastLevel = null;
+    setInterval(() => {
+      const lv = ff.level;
+      const want = stacked ? [] : [lv || lastLevel].filter(Boolean);
+      const have = view.floors?.toArray?.() ?? [];
+      if (want.join() !== have.join()) view.floors = want;
+      if (lv && lv !== lastLevel && !stacked) {
+        lastLevel = lv; showLevel(lv); view.floors = [lv];
+        const cam = view.camera.clone(), z = levelById[lv]?.ELEVATION_RELATIVE ?? 0;
+        view.goTo({ target: new Point({ longitude: CEN[0], latitude: CEN[1], z }), heading: cam.heading, tilt: cam.tilt }, { duration: 900 }).catch(() => {});
+      }
+    }, 300);
+
+    window.cq3 = { view, selectLevel, ff, get stacked() { return stacked; } };
+    await view.when();
+    selectLevel("CQ3.L04");
+    lastLevel = "CQ3.L04";
+    $("loader").classList.add("gone");
+  </script>
+</body>
+</html>
