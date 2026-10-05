@@ -112,7 +112,8 @@
     // Facilities, Levels, Units, Details), loaded into client-side
     // feature layers so the page works from any static host.
     // ------------------------------------------------------------------
-    const load = async (name) => (await fetch(`data/${name}.geojson`)).json();
+    // revalidate with the server on every load, so a new deployment (e.g. a moved building) shows at once
+    const load = async (name) => (await fetch(`data/${name}.geojson`, { cache: "no-cache" })).json();
     const [sites, facilities, levels, units, details] = await Promise.all(["Sites", "Facilities", "Levels", "Units", "Details"].map(load));
 
     const toGraphics = (fc) => fc.features.map((f, i) => {
