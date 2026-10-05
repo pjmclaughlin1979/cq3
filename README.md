@@ -58,7 +58,7 @@ tools/run.sh                                # full re-extraction from the PDF (~
 
 `downloads/CQ3_Indoors.gdb.zip` holds `CQ3_Indoors.gdb` with feature classes
 Sites, Facilities, Levels, Units and Details, in Irish Transverse Mercator
-(EPSG:2157), Z-enabled with Z at each floor's absolute elevation (3.5 m ground floor). Unzip it and add it to
+(EPSG:2157), Z-enabled with Z at each floor's absolute elevation (5.5 m ground floor). Unzip it and add it to
 ArcGIS Pro. It is a plain geodatabase with Indoors layer and field names, not a
 full Indoors database (no domains, relationship classes or attribute rules);
 to get those, append it into a database made with **Create Indoors Database**
@@ -112,8 +112,8 @@ vertical position.
   06, 08, 09, 13, 14 and 15. Levels 02, 03, 05, 07 and 10 copy the nearest
   typical floor; levels 11 and 12 are LV09 less the "LV 11 terrace" strip shown
   on the upper-floor sheets. `SOURCE_NOTE` records this for every level and unit.
-* **Ground floor level is 3.5 m.** `ELEVATION_ABSOLUTE` = 3.5 m + `ELEVATION_RELATIVE`;
-  the viewer and the geodatabase Z values use it, so the building sits at 3.5 m
+* **Ground floor level is 5.5 m.** `ELEVATION_ABSOLUTE` = 5.5 m + `ELEVATION_RELATIVE`;
+  the viewer and the geodatabase Z values use it, so the building sits at 5.5 m
   on the World Elevation ground. Change `BASE_ELEV` in `tools/build.py` to adjust.
 * **Heights are assumed.** No sections were supplied: ground floor 5.0 m,
   typical floors 3.9 m floor-to-floor. The building is reported as 70.3 m tall

@@ -152,7 +152,7 @@ def use_type(name, rid):
 
 # ---- levels -------------------------------------------------------------------------------
 GF_H, TYP_H = 5.0, 3.9               # assumed floor-to-floor heights (sections not supplied)
-BASE_ELEV = 3.5                      # ground floor level above datum (m); ELEVATION_ABSOLUTE = BASE_ELEV + ELEVATION_RELATIVE
+BASE_ELEV = 5.5                      # ground floor level above datum (m); ELEVATION_ABSOLUTE = BASE_ELEV + ELEVATION_RELATIVE
 def footprint(rooms, src=None):
     if src == "00": return GF_OUTLINE
     u = unary_union([r["geom"] for r in rooms if not r["geom"].is_empty])

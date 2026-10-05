@@ -133,8 +133,8 @@
       for (const feat of fc.features) for (const k of Object.keys(feat.properties)) if (!seen.has(k)) { seen.add(k); f.push({ name: k, type: "string" }); }
       return f;
     };
-    // floors sit at ELEVATION_ABSOLUTE: 3.5 m (ground floor level) + ELEVATION_RELATIVE
-    const BASE = facilities.features[0].properties.ELEVATION_ABSOLUTE ?? 3.5;
+    // floors sit at ELEVATION_ABSOLUTE: ground floor level (5.5 m, from the facility) + ELEVATION_RELATIVE
+    const BASE = facilities.features[0].properties.ELEVATION_ABSOLUTE ?? 0;
     const ELEV = { mode: "absolute-height", featureExpressionInfo: { expression: "$feature.ELEVATION_ABSOLUTE" }, unit: "meters" };
     const layer = (id, fc, geometryType, extra = {}) => new FeatureLayer(Object.assign({
       id, title: id, source: toGraphics(fc), fields: fieldsOf(fc), objectIdField: "OBJECTID", geometryType,

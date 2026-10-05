@@ -2,7 +2,8 @@
 
 Feature classes use the ArcGIS Indoors layer names and field names. Geometry is
 projected to Irish Transverse Mercator (EPSG:2157, metres) and made Z-aware, with
-Z set to each feature's floor elevation above datum (ELEVATION_ABSOLUTE = 3.5 m + ELEVATION_RELATIVE).
+Z set to each feature's floor elevation above datum (ELEVATION_ABSOLUTE = base + ELEVATION_RELATIVE;
+the base is the ground floor level, BASE_ELEV in build.py, stored on the facility).
 
     pip install geopandas pyogrio        # GDAL >= 3.6 (OpenFileGDB write support)
     python3 tools/export_gdb.py
@@ -20,11 +21,14 @@ CRS = "EPSG:2157"                                    # Irish Transverse Mercator
 INT_FIELDS = {"LEVEL_NUMBER", "VERTICAL_ORDER", "LEVELS"}
 LAYERS = ["Sites", "Facilities", "Levels", "Units", "Details"]
 
+# ground floor level (the facility's ELEVATION_ABSOLUTE), used for layers without their own elevation
+BASE = float(gpd.read_file(os.path.join(DATA, "Facilities.geojson"))["ELEVATION_ABSOLUTE"].iloc[0])
+
 os.makedirs(OUT_DIR, exist_ok=True)
 shutil.rmtree(GDB, ignore_errors=True)
 for name in LAYERS:
     gdf = gpd.read_file(os.path.join(DATA, f"{name}.geojson")).to_crs(CRS)
-    z = gdf["ELEVATION_ABSOLUTE"].fillna(0).astype(float).to_numpy() if "ELEVATION_ABSOLUTE" in gdf else 3.5   # site boundary at ground floor level
+    z = gdf["ELEVATION_ABSOLUTE"].fillna(0).astype(float).to_numpy() if "ELEVATION_ABSOLUTE" in gdf else BASE   # site boundary at ground floor level
     gdf["geometry"] = shapely.force_3d(gdf.geometry.values, z)
     if gdf.geom_type.isin(["Polygon", "MultiPolygon"]).all():
         gdf["geometry"] = [shapely.MultiPolygon([g]) if g.geom_type == "Polygon" else g for g in gdf.geometry]
