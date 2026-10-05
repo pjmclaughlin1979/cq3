@@ -103,12 +103,11 @@ vertical position.
 
 ## Assumptions and limits
 
-* **Location was fitted by eye.** No survey coordinates were available. The
-  building centre is at 54.6047265° N, 5.9191272° W: a first estimate moved
-  60 m north-east and then 60 m at a bearing of 50° after checking against
-  satellite imagery. Orientation comes from the plan's north arrow (sheet-up =
-  35.5°). To adjust, change `ANCHOR` (and `BEARING` if needed) in
-  `tools/build.py` and run `python3 tools/build.py` and `python3 tools/export_gdb.py`.
+* **Location.** The building centre (the centre of the structural grid, which
+  coincides with the footprint centroid) is at 54.604805° N, 5.920215° W, as
+  supplied. Orientation comes from the plan's north arrow (sheet-up = 35.5°).
+  To adjust, change `ANCHOR` (and `BEARING` if needed) in `tools/build.py` and
+  run `python3 tools/build.py` and `python3 tools/export_gdb.py`.
 * **Levels not on the drawings are inferred.** Sheets exist for Ground, 01, 04,
   06, 08, 09, 13, 14 and 15. Levels 02, 03, 05, 07 and 10 copy the nearest
   typical floor; levels 11 and 12 are LV09 less the "LV 11 terrace" strip shown
